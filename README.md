@@ -4,7 +4,7 @@ A single-offer landing page built from the supplied audit blueprint. Uses Zykken
 
 ## Preview
 
-Requires Node.js 22.13 or newer.
+Requires Node.js 24.x.
 
 ```sh
 npm ci
@@ -18,8 +18,15 @@ Routes: `/` and `/uae-real-estate-audit`. The confirmation route is `/uae-real-e
 ```sh
 npx tsc --noEmit
 node --test tests/audit.test.mjs
+node --test tests/audit-runtime.test.mjs
 npm run build
 ```
+
+## Deploy to Vercel
+
+Import this repository with its root directory left at the repository root. The committed `vercel.json` selects Next.js, runs `npm run build`, and uses `.next` as the output directory. `npm run start` serves the production build locally.
+
+The default scripts use Next.js, which produces the manifests Vercel requires. The original Cloudflare/Sites workflow remains available as `npm run dev:sites`, `npm run build:sites`, and `npm run start:sites`; its `dist` output is not a Vercel build.
 
 ## Activate lead delivery
 
@@ -31,7 +38,9 @@ Set these runtime variables through the host’s secret settings:
 - `RESEND_API_KEY`: a real Resend key with access to the verified sending domain.
 - `AUDIT_FROM_EMAIL`: a verified Zykken sender address.
 
-Never add credentials to source control. The D1 `DB` binding is declared in `.openai/hosting.json`; Sites applies the included schema migration on deployment. For a local database, build and then apply `drizzle/0000_classy_jocasta.sql` with the starter’s local Wrangler D1 command.
+Never add credentials to source control. On Sites, the D1 `DB` binding is declared in `.openai/hosting.json`; Sites applies the included schema migration on deployment. For a local Sites database, run `npm run build:sites` and then apply `drizzle/0000_classy_jocasta.sql` with the starter’s local Wrangler D1 command.
+
+Vercel does not provide the Sites D1 binding. The landing page deploys without it, and the form returns HTTP 503 with the unavailable message. Enabling collection on Vercel requires connecting a compatible persistent database and adapting `lib/audit-runtime.ts` / `db/index.ts`, as well as setting the delivery variables above. Setting email credentials alone does not enable collection. No browser submission is treated as successful without persistence and confirmed delivery.
 
 `POST /api/audit` validates fields, checks same-origin JSON requests, rate limits, stores the request privately, forwards to Zykken’s verified `https://www.zykken.com/api/contact` service, and sends the acknowledgement through Resend. A successful confirmation requires the lead record plus affirmative responses from both delivery services. External delivery has not been tested with live credentials. Tests use mocked providers and do not send messages.
 

@@ -1,5 +1,6 @@
 import handler from "vinext/server/fetch-handler";
 import { runWithConnectorBinding } from "../lib/connector-context";
+import { runWithAuditRuntime } from "../lib/audit-runtime";
 import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 export default {
@@ -23,6 +24,8 @@ export default {
         },
       };
     }
-    return runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx));
+    return runWithAuditRuntime(env, () =>
+      runWithConnectorBinding(binding, () => handler.fetch(request, env, ctx)),
+    );
   },
 };

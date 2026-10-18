@@ -1,8 +1,9 @@
-import { env } from "cloudflare:workers";
 import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { auditLeads, auditRateLimits } from "@/db/schema";
-import { acknowledgeAudit, deliveryConfigured, notifyAuditTeam, type AuditDeliveryConfig } from "@/lib/audit-delivery";
+import { acknowledgeAudit, deliveryConfigured, notifyAuditTeam } from "@/lib/audit-delivery";
+import { getAuditRuntime } from "@/lib/audit-runtime";
+import { isSameOriginRequest } from "@/lib/audit-origin";
 import { consentedPhone, parseAuditRequest, qualification } from "@/lib/audit-validation";
 
 const unavailableMessage = "Audit requests are temporarily unavailable. Your details haven’t been submitted; please try again later.";
@@ -35,8 +36,7 @@ async function limitedJson(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) return json({ ok: false, message: "Please submit the request from this page." }, 403);
+  if (!isSameOriginRequest(request)) return json({ ok: false, message: "Please submit the request from this page." }, 403);
   if (!request.headers.get("content-type")?.includes("application/json")) return json({ ok: false, message: "Please submit the form on this page." }, 415);
   let raw: unknown;
   try { raw = await limitedJson(request); } catch { return json({ ok: false, message: "We couldn’t read that request. Please check the form and try again." }, 400); }
@@ -46,11 +46,11 @@ export async function POST(request: Request) {
   if (data.company_site) return json({ ok: false, message: "We couldn’t accept this request. Please try again." }, 400);
 
   // Collection is disabled until both the verified team destination and acknowledgement sender are ready.
-  const config = env as Cloudflare.Env & AuditDeliveryConfig;
+  const config = getAuditRuntime();
   if (!config.DB || !deliveryConfigured(config)) return json({ ok: false, message: unavailableMessage }, 503);
   const now = new Date().toISOString();
   try {
-    const db = getDb();
+    const db = getDb(config.DB);
     const bucket = Math.floor(Date.now() / 600000);
     // Cloudflare supplies this header. Never trust forwarded-for or persist raw IP addresses.
     const ip = request.headers.get("cf-connecting-ip") || "local";

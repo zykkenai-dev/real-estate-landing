@@ -1,6 +1,15 @@
 import { desc } from "drizzle-orm";
 import { getDb } from "../../../../../db";
+import { getAuditRuntime } from "../../../../../lib/audit-runtime";
 import { notes } from "../../../db/schema";
+
+function getNotesDb() {
+  const binding = getAuditRuntime().DB;
+  if (!binding) {
+    throw new Error("Cloudflare D1 binding `DB` is unavailable. This example requires a Sites runtime with a D1 database binding.");
+  }
+  return getDb(binding);
+}
 
 function toRouteErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : "Unexpected error";
@@ -17,7 +26,7 @@ function toRouteErrorMessage(error: unknown) {
 
 export async function GET() {
   try {
-    const db = getDb();
+    const db = getNotesDb();
     const rows = await db
       .select()
       .from(notes)
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "title is required" }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = getNotesDb();
     const [note] = await db.insert(notes).values({ title, content }).returning();
     return Response.json({ note }, { status: 201 });
   } catch (error) {

@@ -10,6 +10,28 @@ const validationUrl = asModule(compile(await readFile(new URL("../lib/audit-vali
 const { initialAuditValues, parseAuditRequest, validateAudit, contactMessage, consentedPhone, qualification } = await import(validationUrl);
 const deliverySource = compile(await readFile(new URL("../lib/audit-delivery.ts", import.meta.url), "utf8")).replace('"./audit-validation"', JSON.stringify(validationUrl));
 const { acknowledgeAudit, notifyAuditTeam, deliveryConfigured } = await import(asModule(deliverySource));
+const { isSameOriginRequest } = await import(asModule(compile(await readFile(new URL("../lib/audit-origin.ts", import.meta.url), "utf8"))));
+
+test("origin checks use the actual host when Next normalizes its request URL", () => {
+  const request = new Request("http://localhost:3100/api/audit", {
+    headers: { host: "127.0.0.1:3100", origin: "http://127.0.0.1:3100" },
+  });
+  assert.equal(isSameOriginRequest(request), true);
+  assert.equal(isSameOriginRequest(new Request("https://audit.example/api/audit", {
+    headers: { origin: "https://audit.example" },
+  })), true);
+});
+
+test("origin checks reject foreign hosts, different ports or protocols, and malformed authorities", () => {
+  for (const origin of ["https://other.example", "http://audit.example", "https://audit.example:444", "null", "malformed"]) {
+    assert.equal(isSameOriginRequest(new Request("https://audit.example/api/audit", {
+      headers: { host: "audit.example", origin },
+    })), false, origin);
+  }
+  assert.equal(isSameOriginRequest(new Request("https://audit.example/api/audit", {
+    headers: { host: "audit.example@other.example", origin: "https://other.example" },
+  })), false);
+});
 
 function validRequest(overrides = {}) {
   return {
