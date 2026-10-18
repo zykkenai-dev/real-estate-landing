@@ -22,13 +22,14 @@ function track(event: "form_start" | "form_step1_complete" | "lead_submit_succes
   window.dispatchEvent(new CustomEvent("zykken:analytics", { detail: { event } }));
 }
 
-export function ThankYou() {
+export function ThankYou({ embedded = false }: { embedded?: boolean }) {
+  const Title = embedded ? "h2" : "h1";
   return (
     <section className="thank-you-screen" aria-labelledby="thank-you-heading">
       <div className="thank-you-inner">
         <div className="success-roundel" aria-hidden="true"><Check size={28} strokeWidth={1.7} /></div>
         
-        <h1 id="thank-you-heading">Your audit request is in.</h1>
+        <Title className="thank-you-title" id="thank-you-heading">Your audit request is in.</Title>
         <p>Thanks for sharing a little about your brokerage. We’ll review the details and contact you at the email address you provided.</p>
         <div className="thank-you-questions">
           <h2>While we review: three quick questions for your team</h2>
@@ -143,7 +144,7 @@ export default function AuditForm() {
     return errors[key] ? <p className="field-error" id={`audit-${key}-error`} role="alert">{errors[key]}</p> : null;
   }
 
-  if (success) return <ThankYou />;
+  if (success) return <ThankYou embedded />;
 
   return (
     <div className="form-card">
@@ -152,7 +153,7 @@ export default function AuditForm() {
           <span>Step {step} of 2</span>
           <div className="step-dots" aria-hidden="true"><i className="active" /><i className={step === 2 ? "active" : ""} /></div>
         </div>
-        <h3 ref={titleRef} tabIndex={-1}>Request your free audit</h3>
+        <h2 ref={titleRef} tabIndex={-1}>Request your free audit</h2>
         <p>A few details help us make the review relevant.</p>
       </div>
       <form ref={formRef} onSubmit={submit} noValidate onFocusCapture={() => { if (!started.current) { started.current = true; track("form_start"); } }} aria-label="Free Lead Conversion Audit request">
@@ -161,7 +162,7 @@ export default function AuditForm() {
           <input id="audit-company-site" name="company_site" tabIndex={-1} autoComplete="off" />
         </div>
         {attributionKeys.map(key => <input key={key} type="hidden" name={key} defaultValue="" />)}
-        <p className="form-step-title">{step === 1 ? "Your brokerage" : "Your lead process"}</p>
+        
         {step === 1 ? (
           <>
             <div className="field"><label htmlFor="audit-name">Full name <span aria-hidden="true">*</span></label>
