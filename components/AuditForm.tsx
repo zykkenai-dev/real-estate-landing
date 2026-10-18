@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, LoaderCircle, LockKeyhole } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, LoaderCircle } from "lucide-react";
 import {
   attributionKeys, challenges, enquiryVolumes, initialAuditValues, roles, validateAudit,
   type Attribution, type AuditErrors, type AuditValues,
@@ -27,7 +27,7 @@ export function ThankYou() {
     <section className="thank-you-screen" aria-labelledby="thank-you-heading">
       <div className="thank-you-inner">
         <div className="success-roundel" aria-hidden="true"><Check size={28} strokeWidth={1.7} /></div>
-        <p className="eyebrow">YOUR NEXT STEP</p>
+        
         <h1 id="thank-you-heading">Your audit request is in.</h1>
         <p>Thanks for sharing a little about your brokerage. We’ll review the details and contact you at the email address you provided.</p>
         <div className="thank-you-questions">
@@ -171,19 +171,19 @@ export default function AuditForm() {
             <div className="field"><label htmlFor="audit-email">Work email <span aria-hidden="true">*</span></label>
               <input className="form-input" id="audit-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="you@yourbrokerage.com" required maxLength={254} value={values.email} onChange={event => update("email", event.target.value)} {...errorAttributes("email")} />{error("email")}</div>
             <div className="field"><label htmlFor="audit-profile">Brokerage website or Instagram <span className="optional">(optional)</span></label>
-              <input className="form-input" id="audit-profile" name="profile" autoComplete="url" placeholder="Website or Instagram profile link" maxLength={250} value={values.profile} onChange={event => update("profile", event.target.value)} {...errorAttributes("profile", "audit-profile-help")} />
+              <input className="form-input" id="audit-profile" name="profile" autoComplete="url" placeholder="Website or Instagram link" maxLength={250} value={values.profile} onChange={event => update("profile", event.target.value)} {...errorAttributes("profile", "audit-profile-help")} />
               <p className="field-help" id="audit-profile-help">We’ll use this to review the public enquiry experience.</p>{error("profile")}</div>
             <button className="button button-dark form-button" type="submit">Continue <ArrowRight size={18} aria-hidden="true" /></button>
-            <p className="form-reassurance"><LockKeyhole size={13} aria-hidden="true" /> Free to request. No obligation.</p>
+            
           </>
         ) : (
           <>
             <div className="field"><label htmlFor="audit-role">Your role <span aria-hidden="true">*</span></label>
-              <select className="form-select" id="audit-role" name="role" required value={values.role} onChange={event => update("role", event.target.value)} {...errorAttributes("role")}><option value="">Select your role</option>{roles.map(role => <option key={role}>{role}</option>)}</select>{error("role")}</div>
+              <select className="form-select" id="audit-role" name="role" required value={values.role} onChange={event => update("role", event.target.value)} {...errorAttributes("role")}><option value="">Select your role</option>{roles.map(role => <option key={role} value={role}>{role === "Managing Director / Brokerage Manager" ? "Director / Manager" : role}</option>)}</select>{error("role")}</div>
             <div className="field"><label htmlFor="audit-volume">Approximate monthly property enquiries <span aria-hidden="true">*</span></label>
               <select className="form-select" id="audit-volume" name="volume" required value={values.volume} onChange={event => update("volume", event.target.value)} {...errorAttributes("volume")}><option value="">Select enquiry volume</option>{enquiryVolumes.map(volume => <option key={volume}>{volume}</option>)}</select>{error("volume")}</div>
             <div className="field"><label htmlFor="audit-challenge">Biggest challenge right now <span aria-hidden="true">*</span></label>
-              <select className="form-select" id="audit-challenge" name="challenge" required value={values.challenge} onChange={event => update("challenge", event.target.value)} {...errorAttributes("challenge")}><option value="">Select your biggest challenge</option>{challenges.map(challenge => <option key={challenge}>{challenge}</option>)}</select>{error("challenge")}</div>
+              <select className="form-select" id="audit-challenge" name="challenge" required value={values.challenge} onChange={event => update("challenge", event.target.value)} {...errorAttributes("challenge")}><option value="">Choose a challenge</option>{challenges.map(challenge => <option key={challenge} value={challenge}>{{"Responding to enquiries quickly": "Faster responses", "Following up consistently": "Consistent follow-ups", "Turning enquiries into viewings": "More booked viewings", "Tracking leads and agent ownership": "Tracking & ownership", "Not sure where the gap is": "Finding the gap"}[challenge] || challenge}</option>)}</select>{error("challenge")}</div>
             <div className="field whatsapp-field">
               <p className="field-label">WhatsApp number <span className="optional">(optional)</span></p>
               <p className="field-help" id="audit-whatsapp-help">Only if you’d like us to contact you on WhatsApp.</p>

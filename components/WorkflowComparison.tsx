@@ -67,7 +67,7 @@ export default function WorkflowComparison() {
                   <span className="workflow-path" aria-hidden="true">
                     <span className="workflow-path-marker">
                       {workflow === "intentional" ? (
-                        <Check size={11} strokeWidth={2} />
+                        <Check size={16} strokeWidth={2} />
                       ) : (
                         "?"
                       )}
