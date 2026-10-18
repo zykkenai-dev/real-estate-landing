@@ -4,7 +4,10 @@ A single-offer landing page built from the supplied audit blueprint. Uses Zykken
 
 ## Preview
 
+Requires Node.js 22.13 or newer.
+
 ```sh
+npm ci
 npm run dev -- --hostname 127.0.0.1 --port 5173
 ```
 
