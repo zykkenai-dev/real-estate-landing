@@ -56,7 +56,7 @@ export function validateAudit(values: AuditValues, step: 1 | 2 | "all" = "all"):
   if (step === 1 || step === "all") {
     if (values.name.trim().length < 2 || values.name.length > 100) errors.name = "Enter your full name (2–100 characters).";
     if (values.brokerage.trim().length < 2 || values.brokerage.length > 150) errors.brokerage = "Enter your brokerage’s name (2–150 characters).";
-    if (values.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) errors.email = "Enter a valid work email address.";
+    if (values.email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(values.email.trim())) errors.email = "Enter a valid work email address.";
     if (values.profile.trim()) {
       const profile = values.profile.trim();
       const isHandle = /^@[a-zA-Z0-9._]{1,30}$/.test(profile);

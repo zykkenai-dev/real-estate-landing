@@ -9,7 +9,7 @@ const asModule = source => `data:text/javascript;base64,${Buffer.from(source).to
 const validationUrl = asModule(compile(await readFile(new URL("../lib/audit-validation.ts", import.meta.url), "utf8")));
 const { initialAuditValues, parseAuditRequest, validateAudit, contactMessage, consentedPhone, qualification } = await import(validationUrl);
 const deliverySource = compile(await readFile(new URL("../lib/audit-delivery.ts", import.meta.url), "utf8")).replace('"./audit-validation"', JSON.stringify(validationUrl));
-const { acknowledgeAudit, notifyAuditTeam, deliveryConfigured } = await import(asModule(deliverySource));
+const { acknowledgeAudit, notifyAuditTeam, acknowledgementConfigured, optionalAcknowledgement } = await import(asModule(deliverySource));
 const { isSameOriginRequest } = await import(asModule(compile(await readFile(new URL("../lib/audit-origin.ts", import.meta.url), "utf8"))));
 
 test("origin checks use the actual host when Next normalizes its request URL", () => {
@@ -55,6 +55,7 @@ test("server rejects malformed requests and selections outside the supplied opti
   assert.equal(parseAuditRequest(validRequest({ whatsappConsent: "true" })).invalid, true);
   assert.match(parseAuditRequest(validRequest({ role: "Property buyer" })).errors.role, /Choose/);
   assert.match(parseAuditRequest(validRequest({ email: "invalid@" })).errors.email, /email/);
+  assert.match(parseAuditRequest(validRequest({ email: "sam@example.c" })).errors.email, /email/);
   assert.match(parseAuditRequest(validRequest({ name: "x".repeat(101) })).errors.name, /full name/);
 });
 
@@ -92,10 +93,11 @@ test("priority is a heuristic and accepts low-volume legitimate requests", () =>
   assert.ok(parseAuditRequest(validRequest({ role: "Agent", volume: "0-10" })).data);
 });
 
-test("delivery stays disabled until forwarding and acknowledgement credentials are configured", () => {
-  assert.equal(deliveryConfigured({}), false);
-  assert.equal(deliveryConfigured({ AUDIT_CONTACT_ENABLED: "false", RESEND_API_KEY: "test", AUDIT_FROM_EMAIL: "audit@example.com" }), false);
-  assert.equal(deliveryConfigured({ AUDIT_CONTACT_ENABLED: "true", RESEND_API_KEY: "test", AUDIT_FROM_EMAIL: "audit@example.com" }), true);
+test("visitor acknowledgement uses the website's server-only variable names", () => {
+  assert.equal(acknowledgementConfigured({}), false);
+  assert.equal(acknowledgementConfigured({ RESEND_API_KEY: "test" }), false);
+  assert.equal(acknowledgementConfigured({ RESEND_API_KEY: "test", RESEND_FROM_EMAIL: "audit@example.com" }), true);
+  assert.equal(acknowledgementConfigured({ RESEND_API_KEY: "test", AUDIT_FROM_EMAIL: "audit@example.com" }), true);
 });
 
 test("team forwarding requires an affirmative upstream result and sends only consented phone", async () => {
@@ -129,4 +131,14 @@ test("acknowledgement requires the provider message ID and uses a stable idempot
   assert.match(sent.text, /Hi Sam,/);
   assert.doesNotMatch(sent.text, /business day/);
   await assert.rejects(acknowledgeAudit(data, {}, async () => Response.json({})), /not confirmed/);
+});
+
+test("missing or failed visitor acknowledgements do not invalidate inbox delivery", async () => {
+  const data = parseAuditRequest(validRequest()).data;
+  assert.equal(await optionalAcknowledgement(data, {}, async () => { throw new Error("Must not send without credentials"); }), null);
+  assert.equal(await optionalAcknowledgement(data, { RESEND_API_KEY: "test", RESEND_FROM_EMAIL: "audit@example.com" }, async () => Response.json({ error: "Rejected" }, { status: 503 })), null);
+  assert.equal(await optionalAcknowledgement(data, { RESEND_API_KEY: "test", RESEND_FROM_EMAIL: "audit@example.com" }, async (_url, options) => {
+    assert.equal(JSON.parse(options.body).from, "audit@example.com");
+    return Response.json({ id: "ack-id" });
+  }), "ack-id");
 });

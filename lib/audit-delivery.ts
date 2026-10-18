@@ -1,16 +1,18 @@
 import { consentedPhone, contactMessage, type AuditRequest } from "./audit-validation";
 
 export type AuditDeliveryConfig = {
-  AUDIT_CONTACT_ENABLED?: string;
   RESEND_API_KEY?: string;
+  RESEND_FROM_EMAIL?: string;
   AUDIT_FROM_EMAIL?: string;
 };
 
-export function deliveryConfigured(config: AuditDeliveryConfig) {
-  return config.AUDIT_CONTACT_ENABLED === "true" && Boolean(config.RESEND_API_KEY?.trim()) && Boolean(config.AUDIT_FROM_EMAIL?.trim());
+export function acknowledgementConfigured(config: AuditDeliveryConfig) {
+  return Boolean(config.RESEND_API_KEY?.trim()) && Boolean((config.RESEND_FROM_EMAIL || config.AUDIT_FROM_EMAIL)?.trim());
 }
 
 export async function notifyAuditTeam(data: AuditRequest, send: typeof fetch = fetch) {
+  // This is the website's existing server-side mail service. Its fixed recipient
+  // is info@zykken.com; the Resend credentials remain on the website's server.
   const response = await send("https://www.zykken.com/api/contact", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": data.requestId },
@@ -33,7 +35,7 @@ export async function acknowledgeAudit(data: AuditRequest, config: AuditDelivery
       "Idempotency-Key": `audit-acknowledgement/${data.requestId}`,
     },
     body: JSON.stringify({
-      from: config.AUDIT_FROM_EMAIL, to: [data.email],
+      from: config.RESEND_FROM_EMAIL || config.AUDIT_FROM_EMAIL, to: [data.email],
       subject: "Your Zykken lead audit request is confirmed",
       text: `Hi ${firstName},\n\nThanks for requesting a Lead Conversion Audit for ${data.brokerage}.\nWe’ve received your details and will review the enquiry journey using the information you shared.\n\nIn the meantime, here are three useful things to check: how quickly your team responds, how consistently it follows up, and whether each enquiry has a visible next step.\n\nWe’ll be in touch about the audit.\n\nZykken`,
     }),
@@ -42,4 +44,14 @@ export async function acknowledgeAudit(data: AuditRequest, config: AuditDelivery
   const result = await response.json() as { id?: string };
   if (!response.ok || typeof result.id !== "string" || !result.id) throw new Error("Audit acknowledgement was not confirmed");
   return result.id;
+}
+
+export async function optionalAcknowledgement(data: AuditRequest, config: AuditDeliveryConfig, send: typeof fetch = fetch) {
+  if (!acknowledgementConfigured(config)) return null;
+  try {
+    return await acknowledgeAudit(data, config, send);
+  } catch {
+    // A visitor acknowledgement must not turn a confirmed inbox delivery into a failed submission.
+    return null;
+  }
 }

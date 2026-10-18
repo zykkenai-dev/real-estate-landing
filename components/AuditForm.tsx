@@ -195,7 +195,7 @@ export default function AuditForm() {
               </div>}
             </div>
             <p className="form-privacy">By submitting, you agree that Zykken may use your details to prepare and deliver this audit and respond to your request. Read our <a href="https://www.zykken.com/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy<span className="sr-only"> (opens in a new tab)</span></a>.</p>
-            {serverError && <p className="form-server-error" role="alert">{serverError}</p>}
+            {serverError && <p className="form-server-error" role="alert">{serverError} <a href="mailto:info@zykken.com">Email info@zykken.com</a></p>}
             <div className="form-actions"><button className="form-back" type="button" disabled={loading} onClick={() => { setStep(1); setServerError(""); requestAnimationFrame(() => titleRef.current?.focus()); }}><ArrowLeft size={16} aria-hidden="true" /> Back</button>
               <button className="button button-dark form-button" type="submit" disabled={loading} aria-busy={loading}>{loading ? <>Submitting… <LoaderCircle className="loading-icon" size={18} aria-hidden="true" /></> : <>Request My Free Audit <ArrowRight size={18} aria-hidden="true" /></>}</button></div>
           </>

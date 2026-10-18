@@ -1,12 +1,13 @@
 import { and, eq, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { auditLeads, auditRateLimits } from "@/db/schema";
-import { acknowledgeAudit, deliveryConfigured, notifyAuditTeam } from "@/lib/audit-delivery";
+import { notifyAuditTeam, optionalAcknowledgement } from "@/lib/audit-delivery";
 import { getAuditRuntime } from "@/lib/audit-runtime";
+import { allowAuditSubmission, submitAuditOnce } from "@/lib/audit-submission";
 import { isSameOriginRequest } from "@/lib/audit-origin";
 import { consentedPhone, parseAuditRequest, qualification } from "@/lib/audit-validation";
 
-const unavailableMessage = "Audit requests are temporarily unavailable. Your details haven’t been submitted; please try again later.";
+const unavailableMessage = "We couldn’t confirm delivery of your audit request. Your details are still in the form; please try again or email info@zykken.com.";
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...headers } });
@@ -45,9 +46,24 @@ export async function POST(request: Request) {
   const data = parsed.data;
   if (data.company_site) return json({ ok: false, message: "We couldn’t accept this request. Please try again." }, 400);
 
-  // Collection is disabled until both the verified team destination and acknowledgement sender are ready.
   const config = getAuditRuntime();
-  if (!config.DB || !deliveryConfigured(config)) return json({ ok: false, message: unavailableMessage }, 503);
+  // Vercel uses the same mail endpoint and credentials as the main website.
+  // A Cloudflare-only database or a separate visitor email key is not required.
+  if (!config.DB) {
+    try {
+      // Vercel supplies this protected header. Local previews do not trust caller-supplied IPs.
+      const ip = process.env.VERCEL === "1" ? request.headers.get("x-vercel-forwarded-for") ?? request.headers.get("x-real-ip") ?? undefined : undefined;
+      const retryAfter = await allowAuditSubmission(ip);
+      if (retryAfter) return json({ ok: false, message: "There have been several requests from your connection. Please wait a few minutes and try again." }, 429, { "Retry-After": String(retryAfter) });
+      const result = await submitAuditOnce(data, async savedData => {
+        await notifyAuditTeam(savedData);
+        await optionalAcknowledgement(savedData, config);
+      });
+      return json(result, result.ok ? 200 : result.status);
+    } catch {
+      return json({ ok: false, message: unavailableMessage }, 502);
+    }
+  }
   const now = new Date().toISOString();
   try {
     const db = getDb(config.DB);
@@ -100,7 +116,7 @@ export async function POST(request: Request) {
         return json({ ok: false, message: "We saved your details but couldn’t confirm delivery to our team. Please try again shortly." }, 502);
       }
     }
-    const acknowledgementId = lead.acknowledgementId || await acknowledgeAudit(savedData, config);
+    const acknowledgementId = lead.acknowledgementId || await optionalAcknowledgement(savedData, config);
     await db.update(auditLeads).set({ acknowledgementId, deliveryStatus: "CONFIRMED", updatedAt: new Date().toISOString() }).where(eq(auditLeads.id, data.requestId));
     return json({ ok: true }, 200);
   } catch {

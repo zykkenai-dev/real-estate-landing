@@ -12,8 +12,8 @@ export function runWithAuditRuntime<T>(config: AuditRuntime, run: () => T): T {
 
 export function getAuditRuntime(): AuditRuntime {
   return runtime.getStore() ?? {
-    AUDIT_CONTACT_ENABLED: process.env.AUDIT_CONTACT_ENABLED,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
     AUDIT_FROM_EMAIL: process.env.AUDIT_FROM_EMAIL,
   };
 }
